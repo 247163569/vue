@@ -36,7 +36,7 @@ describe('Component scoped slot', () => {
       template: `
         <test ref="test">
           <template scope="props">
-            <span>{{ props.msg }} {{ props.msg2 }}</span>
+            <span>{{ props.msg }} {{ props.msg2 }} {{ props.msg3 }}</span>
           </template>
         </test>
       `,
@@ -45,23 +45,23 @@ describe('Component scoped slot', () => {
           data () {
             return {
               msg: 'hello',
-              obj: { msg2: 'world' }
+              obj: { msg2: 'world', msg3: '.' }
             }
           },
           template: `
             <div>
-              <slot :msg="msg" v-bind="obj"></slot>
+              <slot :msg="msg" v-bind="obj" msg3="!"></slot>
             </div>
           `
         }
       }
     }).$mount()
 
-    expect(vm.$el.innerHTML).toBe('<span>hello world</span>')
+    expect(vm.$el.innerHTML).toBe('<span>hello world !</span>')
     vm.$refs.test.msg = 'bye'
     vm.$refs.test.obj.msg2 = 'bye'
     waitForUpdate(() => {
-      expect(vm.$el.innerHTML).toBe('<span>bye bye</span>')
+      expect(vm.$el.innerHTML).toBe('<span>bye bye !</span>')
     }).then(done)
   })
 
@@ -381,5 +381,40 @@ describe('Component scoped slot', () => {
       }
     }).$mount()
     expect(vm.$el.innerHTML).toBe('<span>hello</span>')
+  })
+
+  // #5615
+  it('scoped slot with v-for', done => {
+    const vm = new Vue({
+      data: { names: ['foo', 'bar'] },
+      template: `
+        <test ref="test">
+          <template v-for="n in names" :slot="n" scope="props">
+            <span>{{ props.msg }}</span>
+          </template>
+          <template slot="abc" scope="props">
+            <span>{{ props.msg }}</span>
+          </template>
+        </test>
+      `,
+      components: {
+        test: {
+          data: () => ({ msg: 'hello' }),
+          template: `
+            <div>
+              <slot name="foo" :msg="msg + ' foo'"></slot>
+              <slot name="bar" :msg="msg + ' bar'"></slot>
+              <slot name="abc" :msg="msg + ' abc'"></slot>
+            </div>
+          `
+        }
+      }
+    }).$mount()
+
+    expect(vm.$el.innerHTML).toBe('<span>hello foo</span> <span>hello bar</span> <span>hello abc</span>')
+    vm.$refs.test.msg = 'world'
+    waitForUpdate(() => {
+      expect(vm.$el.innerHTML).toBe('<span>world foo</span> <span>world bar</span> <span>world abc</span>')
+    }).then(done)
   })
 })

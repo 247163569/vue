@@ -28,6 +28,11 @@ function updateDOMProps (oldVnode: VNodeWithData, vnode: VNodeWithData) {
     if (key === 'textContent' || key === 'innerHTML') {
       if (vnode.children) vnode.children.length = 0
       if (cur === oldProps[key]) continue
+      // #6601 work around Chrome version <= 55 bug where single textNode
+      // replaced by innerHTML/textContent retains its parentNode property
+      if (elm.childNodes.length === 1) {
+        elm.removeChild(elm.childNodes[0])
+      }
     }
 
     if (key === 'value') {
@@ -35,7 +40,7 @@ function updateDOMProps (oldVnode: VNodeWithData, vnode: VNodeWithData) {
       // non-string values will be stringified
       elm._value = cur
       // avoid resetting cursor position when value is the same
-      const strCur = cur == null ? '' : String(cur)
+      const strCur = isUndef(cur) ? '' : String(cur)
       if (shouldUpdateValue(elm, vnode, strCur)) {
         elm.value = strCur
       }
@@ -61,14 +66,19 @@ function shouldUpdateValue (
 }
 
 function isDirty (elm: acceptValueElm, checkVal: string): boolean {
-  // return true when textbox (.number and .trim) loses focus and its value is not equal to the updated value
-  return document.activeElement !== elm && elm.value !== checkVal
+  // return true when textbox (.number and .trim) loses focus and its value is
+  // not equal to the updated value
+  let notInFocus = true
+  // #6157
+  // work around IE bug when accessing document.activeElement in an iframe
+  try { notInFocus = document.activeElement !== elm } catch (e) {}
+  return notInFocus && elm.value !== checkVal
 }
 
 function isInputChanged (elm: any, newVal: string): boolean {
   const value = elm.value
   const modifiers = elm._vModifiers // injected by v-model runtime
-  if ((isDef(modifiers) && modifiers.number) || elm.type === 'number') {
+  if (isDef(modifiers) && modifiers.number) {
     return toNumber(value) !== toNumber(newVal)
   }
   if (isDef(modifiers) && modifiers.trim) {

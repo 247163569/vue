@@ -13,6 +13,8 @@ class Test extends Vue {
     this.$refs;
     this.$slots;
     this.$isServer;
+    this.$ssrContext;
+    this.$vnode;
   }
 
   // test property reification
@@ -62,6 +64,12 @@ class Test extends Vue {
         vm.testMethods();
       }
     };
+    config.warnHandler = (msg, vm) => {
+      if (vm instanceof Test) {
+        vm.testProperties();
+        vm.testMethods();
+      }
+    };
     config.keyCodes = { esc: 27 };
   }
 
@@ -82,7 +90,7 @@ class Test extends Vue {
     this.directive("", {bind() {}});
     this.filter("", (value: number) => value);
     this.component("", { data: () => ({}) });
-    this.component("", { functional: true });
+    this.component("", { functional: true, render () {}});
     this.use;
     this.mixin(Test);
     this.compile("<div>{{ message }}</div>");
